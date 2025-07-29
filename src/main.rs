@@ -1,4 +1,5 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use plotters::prelude::*;
 use rustfft::{FftPlanner, num_complex::Complex};
 use std::{
     error::Error,
@@ -14,6 +15,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let config = device.default_input_config()?;
     println!("Default input config: {:?}", config);
+
+    let sample_rate = config.sample_rate().0 as usize;
 
     let audio_data = Arc::new(Mutex::new(Vec::<f32>::new()));
 
@@ -50,13 +53,44 @@ fn main() -> Result<(), Box<dyn Error>> {
         let fft = planner.plan_fft_forward(n);
         fft.process(&mut output);
 
-        let magnitudes: Vec<f32> = output.iter().map(|c| c.norm()).collect();
+        let half_n = n / 2;
+        let magnitudes: Vec<f32> = output[..half_n].iter().map(|c| c.norm()).collect();
 
-        println!(
-            "FFT Magnitudes (first 20): {:?}",
-            &magnitudes[..20.min(magnitudes.len())]
-        );
+        let freqs: Vec<f32> = (0..half_n)
+            .map(|i| i as f32 * sample_rate as f32 / n as f32)
+            .collect();
+
+        plot_spectrum(&freqs, &magnitudes, "specturm.png")?;
     }
 
+    Ok(())
+}
+
+fn plot_spectrum(freqs: &[f32], magnitudes: &[f32], filename: &str) -> Result<(), Box<dyn Error>> {
+    let root = BitMapBackend::new(filename, (1024, 768)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    let max_y = magnitudes.iter().copied().fold(0.0_f32, f32::max);
+    let x_max = freqs.last().copied().unwrap_or(1.0);
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Frequency Specturm", ("sans-serif", 40))
+        .margin(10)
+        .x_label_area_size(40)
+        .y_label_area_size(60)
+        .build_cartesian_2d(0.0_f32..x_max, 0.0_f32..max_y)?;
+
+    chart
+        .configure_mesh()
+        .x_desc("Frequency (Hz)")
+        .y_desc("Magnitude")
+        .draw()?;
+
+    chart.draw_series(LineSeries::new(
+        freqs.iter().zip(magnitudes.iter()).map(|(&x, &y)| (x, y)),
+        &BLUE,
+    ))?;
+
+    root.present()?;
     Ok(())
 }

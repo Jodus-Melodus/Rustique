@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 cpal = "0.16.0"
+plotters = "0.3.7"
 rustfft = "6.4.0"
