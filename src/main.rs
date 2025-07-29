@@ -61,6 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .collect();
 
         plot_spectrum(&freqs, &magnitudes, "specturm.png")?;
+        plot_waveform(&buffer, sample_rate, "waveform.png")?;
     }
 
     Ok(())
@@ -88,6 +89,51 @@ fn plot_spectrum(freqs: &[f32], magnitudes: &[f32], filename: &str) -> Result<()
 
     chart.draw_series(LineSeries::new(
         freqs.iter().zip(magnitudes.iter()).map(|(&x, &y)| (x, y)),
+        &BLUE,
+    ))?;
+
+    root.present()?;
+    Ok(())
+}
+
+fn plot_waveform(
+    samples: &[f32],
+    sample_rate: usize,
+    filename: &str,
+) -> Result<(), Box<dyn Error>> {
+    let root = BitMapBackend::new(filename, (1024, 512)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    // Determine time range in seconds
+    let duration = samples.len() as f32 / sample_rate as f32;
+
+    // Find the min/max amplitude for Y-axis scaling
+    let (min_y, max_y) = samples
+        .iter()
+        .fold((f32::MAX, f32::MIN), |(min, max), &val| {
+            (min.min(val), max.max(val))
+        });
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Audio Waveform", ("sans-serif", 30))
+        .margin(10)
+        .x_label_area_size(40)
+        .y_label_area_size(50)
+        .build_cartesian_2d(0f32..duration, min_y..max_y)?;
+
+    chart
+        .configure_mesh()
+        .x_desc("Time (s)")
+        .y_desc("Amplitude")
+        .x_labels(10)
+        .y_labels(5)
+        .draw()?;
+
+    chart.draw_series(LineSeries::new(
+        samples
+            .iter()
+            .enumerate()
+            .map(|(i, &y)| (i as f32 / sample_rate as f32, y)),
         &BLUE,
     ))?;
 
