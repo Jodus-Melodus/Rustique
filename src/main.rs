@@ -1,4 +1,5 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use hound::{SampleFormat, WavReader, WavSpec, WavWriter};
 use plotters::prelude::*;
 use rustfft::{FftPlanner, num_complex::Complex};
 use std::{
@@ -64,6 +65,49 @@ fn main() -> Result<(), Box<dyn Error>> {
         plot_waveform(&buffer, sample_rate, "waveform.png")?;
     }
 
+    write_wav("test.wav", &buffer, sample_rate)?;
+
+    Ok(())
+}
+
+fn _read_wav(path: &str) -> Result<(usize, Vec<f32>), Box<dyn Error>> {
+    let reader = WavReader::open(path)?;
+    let spec = reader.spec();
+
+    let samples: Vec<f32> = match spec.sample_format {
+        SampleFormat::Float => reader
+            .into_samples::<f32>()
+            .map(|s| s.map_err(|e| e.into()))
+            .collect::<Result<_, Box<dyn Error>>>()?,
+        SampleFormat::Int => {
+            let max_amplitude = 2_i32.pow(spec.bits_per_sample as u32 - 1) as f32;
+            reader
+                .into_samples::<i32>()
+                .map(|s| Ok(s? as f32 / max_amplitude))
+                .collect::<Result<_, Box<dyn Error>>>()?
+        }
+    };
+
+    Ok((spec.sample_rate as usize, samples))
+}
+
+fn write_wav(
+    path: &str,
+    samples: &[f32],
+    sample_rate: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let spec = WavSpec {
+        channels: 1,
+        sample_rate: sample_rate as u32,
+        bits_per_sample: 32,
+        sample_format: SampleFormat::Float,
+    };
+
+    let mut writer = WavWriter::create(path, spec)?;
+    for &sample in samples {
+        writer.write_sample(sample.clamp(-1.0, 1.0))?;
+    }
+    writer.finalize()?;
     Ok(())
 }
 
