@@ -1,0 +1,11 @@
+C:\Users\Philip\Documents\Documents\programming\projects\rust\rustique\target\debug\deps\libgif-0edf8465132bd3a1.rmeta: C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\lib.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\traits.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\common.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\reader\mod.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\reader\decoder.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\encoder.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\../README.md
+
+C:\Users\Philip\Documents\Documents\programming\projects\rust\rustique\target\debug\deps\gif-0edf8465132bd3a1.d: C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\lib.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\traits.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\common.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\reader\mod.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\reader\decoder.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\encoder.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\../README.md
+
+C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\lib.rs:
+C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\traits.rs:
+C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\common.rs:
+C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\reader\mod.rs:
+C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\reader\decoder.rs:
+C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\encoder.rs:
+C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gif-0.12.0\src\../README.md:

@@ -1,0 +1,11 @@
+C:\Users\Philip\Documents\Documents\programming\projects\rust\rustique\target\debug\deps\liblibloading-c6dd282f6f2cf1c0.rmeta: C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\lib.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\changelog.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\os\mod.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\os\windows\mod.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\util.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\error.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\safe.rs
+
+C:\Users\Philip\Documents\Documents\programming\projects\rust\rustique\target\debug\deps\libloading-c6dd282f6f2cf1c0.d: C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\lib.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\changelog.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\os\mod.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\os\windows\mod.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\util.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\error.rs C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\safe.rs
+
+C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\lib.rs:
+C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\changelog.rs:
+C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\os\mod.rs:
+C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\os\windows\mod.rs:
+C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\util.rs:
+C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\error.rs:
+C:\Users\Philip\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\libloading-0.8.8\src\safe.rs:
