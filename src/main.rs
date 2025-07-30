@@ -1,4 +1,5 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use eframe::egui;
 use hound::{SampleFormat, WavReader, WavSpec, WavWriter};
 use plotters::prelude::*;
 use rustfft::{FftPlanner, num_complex::Complex32};
@@ -9,6 +10,24 @@ use std::{
     thread::sleep,
     time::Duration,
 };
+
+struct Rustique {
+    detected_note: Arc<Mutex<String>>,
+    detected_freq: Arc<Mutex<f32>>,
+}
+
+impl eframe::App for Rustique {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.request_repaint(); // <-- Add this line!
+        let note = self.detected_note.lock().unwrap().clone();
+        let freq = *self.detected_freq.lock().unwrap();
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("Rustique Tuner");
+            ui.label(format!("Detected note: {}", note));
+            ui.label(format!("Frequency: {:.2} Hz", freq));
+        });
+    }
+}
 
 static NOTES: [(&str, f32); 12] = [
     ("C", 261.63),
@@ -26,6 +45,12 @@ static NOTES: [(&str, f32); 12] = [
 ];
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let detected_note = Arc::new(Mutex::new("A4".to_string()));
+    let detected_freq = Arc::new(Mutex::new(440.0_f32));
+
+    // Clone for audio thread
+    let note_clone = detected_note.clone();
+    let freq_clone = detected_freq.clone();
     let host = cpal::default_host();
     let device = host
         .default_input_device()
@@ -49,18 +74,23 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
     stream.play()?;
 
-    loop {
-        sleep(Duration::from_millis(10));
-
-        let mut buffer = audio_data.lock().unwrap();
-        if buffer.len() >= window_size {
-            let stft_frames = compute_short_time_fourier_transform(&buffer, window_size, hop_size);
-
-            if stft_frames.is_empty() {
-                buffer.clear();
-                continue;
+    std::thread::spawn(move || {
+        loop {
+            sleep(Duration::from_millis(10));
+            let mut buffer = match audio_data.lock() {
+                Ok(guard) => guard,
+                Err(poisoned) => poisoned.into_inner(), // recover from poison
+            };
+            if buffer.len() < window_size {
+                continue; // Not enough data, wait for more
             }
 
+            let stft_frames = compute_short_time_fourier_transform(&buffer, window_size, hop_size);
+            if stft_frames.is_empty() {
+                let drain_len = hop_size.min(buffer.len());
+                buffer.drain(..drain_len);
+                continue;
+            }
             let frequency_magnitudes = stft_frames
                 .iter()
                 .map(|frame| {
@@ -70,6 +100,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .collect::<Vec<f32>>()
                 })
                 .collect::<Vec<Vec<f32>>>();
+            if frequency_magnitudes.is_empty() || frequency_magnitudes[0].is_empty() {
+                let drain_len = hop_size.min(buffer.len());
+                buffer.drain(..drain_len);
+                continue;
+            }
 
             let num_bins = frequency_magnitudes[0].len();
             let num_frames = frequency_magnitudes.len();
@@ -93,6 +128,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let dominant_freq = strongest_bin_idx as f32 * freq_resolution;
 
                 if let Some((note_name, note_freq)) = frequency_to_note(dominant_freq) {
+                    *note_clone.lock().unwrap() = note_name.clone();
+                    *freq_clone.lock().unwrap() = dominant_freq;
                     println!(
                         "Detected note: {} ({:.2} Hz), Detected freq: {:.2} Hz",
                         note_name, note_freq, dominant_freq
@@ -100,16 +137,23 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
 
-            // let bin_ranges = compute_bin_ranges(sample_rate, window_size);
-            // let bin_centers: Vec<f32> = bin_ranges
-            //     .iter()
-            //     .map(|(low, high)| (low + high) / 2.0)
-            //     .collect();
-
-            // plot_average_magnitudes_with_bins(&average_magnitudes_per_bin, &bin_centers)?;
-            buffer.drain(..hop_size); // Clear processed samples
+            let drain_len = hop_size.min(buffer.len());
+            buffer.drain(..drain_len); // Only drain what you have
         }
-    }
+    });
+
+    // GUI app reads from Arc<Mutex<...>>
+    let app = Rustique {
+        detected_note,
+        detected_freq,
+    };
+    let native_options = eframe::NativeOptions::default();
+    eframe::run_native(
+        "Rustique Tuner",
+        native_options,
+        Box::new(|_cc| Ok(Box::new(app))),
+    )?;
+    Ok(())
 }
 
 fn frequency_to_note(freq: f32) -> Option<(String, f32)> {
@@ -133,7 +177,7 @@ fn frequency_to_note(freq: f32) -> Option<(String, f32)> {
     closest_note.map(|(name, note_freq)| (format!("{}{}", name, closest_octave), note_freq))
 }
 
-fn plot_average_magnitudes_with_bins(
+fn _plot_average_magnitudes_with_bins(
     average_magnitudes: &[f32],
     bin_centers: &[f32],
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -177,7 +221,7 @@ fn plot_average_magnitudes_with_bins(
     Ok(())
 }
 
-fn compute_bin_ranges(sample_rate: usize, window_size: usize) -> Vec<(f32, f32)> {
+fn _compute_bin_ranges(sample_rate: usize, window_size: usize) -> Vec<(f32, f32)> {
     let bin_width = sample_rate as f32 / window_size as f32;
     let half_n = window_size / 2;
     (0..half_n)

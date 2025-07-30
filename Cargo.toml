@@ -5,6 +5,9 @@ edition = "2024"
 
 [dependencies]
 cpal = "0.16.0"
+eframe = "0.32.0"
+egui = "0.32.0"
+epi = "0.17.0"
 hound = "3.5.1"
 plotters = "0.3.7"
 rustfft = "6.4.0"
