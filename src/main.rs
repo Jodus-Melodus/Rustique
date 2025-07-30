@@ -18,7 +18,7 @@ struct Rustique {
 
 impl eframe::App for Rustique {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        ctx.request_repaint(); // <-- Add this line!
+        ctx.request_repaint();
         let note = self.detected_note.lock().unwrap().clone();
         let freq = *self.detected_freq.lock().unwrap();
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -47,8 +47,6 @@ static NOTES: [(&str, f32); 12] = [
 fn main() -> Result<(), Box<dyn Error>> {
     let detected_note = Arc::new(Mutex::new("A4".to_string()));
     let detected_freq = Arc::new(Mutex::new(440.0_f32));
-
-    // Clone for audio thread
     let note_clone = detected_note.clone();
     let freq_clone = detected_freq.clone();
     let host = cpal::default_host();
@@ -59,10 +57,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let sample_rate = config.sample_rate().0 as usize;
     let window_size = 4096;
     let hop_size = window_size / 2;
-
     let audio_data = Arc::new(Mutex::new(Vec::<f32>::new()));
     let audio_data_clone = audio_data.clone();
-
     let stream = device.build_input_stream(
         &config.into(),
         move |data: &[f32], _| {
@@ -79,10 +75,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             sleep(Duration::from_millis(10));
             let mut buffer = match audio_data.lock() {
                 Ok(guard) => guard,
-                Err(poisoned) => poisoned.into_inner(), // recover from poison
+                Err(poisoned) => poisoned.into_inner(),
             };
             if buffer.len() < window_size {
-                continue; // Not enough data, wait for more
+                continue;
             }
 
             let stft_frames = compute_short_time_fourier_transform(&buffer, window_size, hop_size);
@@ -108,7 +104,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             let num_bins = frequency_magnitudes[0].len();
             let num_frames = frequency_magnitudes.len();
-
             let mut average_magnitudes_per_bin = vec![0.0f32; num_bins];
             for frame in &frequency_magnitudes {
                 for (bin_idx, mag) in frame.iter().enumerate() {
@@ -138,11 +133,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
 
             let drain_len = hop_size.min(buffer.len());
-            buffer.drain(..drain_len); // Only drain what you have
+            buffer.drain(..drain_len);
         }
     });
 
-    // GUI app reads from Arc<Mutex<...>>
     let app = Rustique {
         detected_note,
         detected_freq,
