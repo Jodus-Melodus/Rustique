@@ -60,12 +60,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         for _ in 0..stft_frames.len() {
             frequencies.push(frame_frequencies.clone());
         }
-        println!(
-            "Frequencies shape: {} frames x {} bins",
-            frequencies.len(),
-            frame_frequencies.len()
-        );
 
+        // bin ranges and frequency magnitudes per bin per frame
         let bin_ranges = compute_bin_ranges(sample_rate, window_size);
         let frequency_magnitudes = stft_frames
             .iter()
@@ -77,24 +73,86 @@ fn main() -> Result<(), Box<dyn Error>> {
             })
             .collect::<Vec<Vec<f32>>>();
 
-        for (frame_idx, magnitudes) in frequency_magnitudes.iter().enumerate() {
-            for (bin_idx, mag) in magnitudes.iter().enumerate() {
-                let (low, high) = bin_ranges[bin_idx];
-                println!(
-                    "Frame {}, Bin {}: {:.2} Hz to {:.2} Hz, magnitude: {:.4}",
-                    frame_idx, bin_idx, low, high, mag
-                );
+        // average magnitudes per bin
+        let num_bins = frequency_magnitudes[0].len();
+        let num_frames = frequency_magnitudes.len();
+
+        let bin_centers: Vec<f32> = bin_ranges
+            .iter()
+            .map(|(low, high)| (low + high) / 2.0)
+            .collect();
+
+        let mut average_magnitudes_per_bin = vec![0.0f32; num_bins];
+        for frame in &frequency_magnitudes {
+            for (bin_idx, mag) in frame.iter().enumerate() {
+                average_magnitudes_per_bin[bin_idx] += *mag;
             }
         }
-    }
 
-    // write_wav("test.wav", &buffer, sample_rate)?;
+        for mag in &mut average_magnitudes_per_bin {
+            *mag /= num_frames as f32;
+        }
+
+        plot_average_magnitudes_with_bins(&average_magnitudes_per_bin, &bin_centers)?;
+    }
 
     Ok(())
 }
 
 fn frequency_to_note(frequency: f32) -> String {
     NOTES[(69.0 + 12.0 * (frequency / 440.0).log2()) as usize].to_string()
+}
+
+fn plot_average_magnitudes_with_bins(
+    average_magnitudes: &[f32],
+    bin_centers: &[f32],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let root = BitMapBackend::new("average_magnitudes_bins.png", (900, 600)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    let max_magnitude = average_magnitudes.iter().cloned().fold(f32::MIN, f32::max);
+
+    // Define x range from min to max bin center
+    let x_min = *bin_centers.first().unwrap_or(&0.0);
+    let x_max = *bin_centers.last().unwrap_or(&0.0);
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption(
+            "Average Magnitudes per Frequency Bin",
+            ("sans-serif", 30).into_font(),
+        )
+        .margin(20)
+        .x_label_area_size(60)
+        .y_label_area_size(60)
+        .build_cartesian_2d(x_min..x_max, 0f32..max_magnitude)?;
+
+    // Customize x axis to show bin centers with formatted labels
+    chart
+        .configure_mesh()
+        .x_desc("Frequency (Hz)")
+        .y_desc("Average Magnitude")
+        .x_labels(10)
+        .x_label_formatter(&|x| format!("{:.1}", x))
+        .draw()?;
+
+    // Draw points
+    chart.draw_series(
+        average_magnitudes
+            .iter()
+            .zip(bin_centers.iter())
+            .map(|(mag, center)| Circle::new((*center, *mag), 3, RED.filled())),
+    )?;
+
+    // Connect points with line
+    chart.draw_series(LineSeries::new(
+        bin_centers
+            .iter()
+            .zip(average_magnitudes.iter())
+            .map(|(center, mag)| (*center, *mag)),
+        &BLUE,
+    ))?;
+
+    Ok(())
 }
 
 fn compute_bin_ranges(sample_rate: usize, window_size: usize) -> Vec<(f32, f32)> {
@@ -157,7 +215,7 @@ fn _read_wav(path: &str) -> Result<(usize, Vec<f32>), Box<dyn Error>> {
     Ok((spec.sample_rate as usize, samples))
 }
 
-fn write_wav(
+fn _write_wav(
     path: &str,
     samples: &[f32],
     sample_rate: usize,
@@ -177,7 +235,7 @@ fn write_wav(
     Ok(())
 }
 
-fn plot_spectrum(freqs: &[f32], magnitudes: &[f32], filename: &str) -> Result<(), Box<dyn Error>> {
+fn _plot_spectrum(freqs: &[f32], magnitudes: &[f32], filename: &str) -> Result<(), Box<dyn Error>> {
     let root = BitMapBackend::new(filename, (1024, 768)).into_drawing_area();
     root.fill(&WHITE)?;
 
@@ -206,7 +264,7 @@ fn plot_spectrum(freqs: &[f32], magnitudes: &[f32], filename: &str) -> Result<()
     Ok(())
 }
 
-fn plot_waveform(
+fn _plot_waveform(
     samples: &[f32],
     sample_rate: usize,
     filename: &str,
