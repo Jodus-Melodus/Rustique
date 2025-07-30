@@ -8,6 +8,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+static NOTES: [&str; 12] = [
+    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+];
+
 fn main() -> Result<(), Box<dyn Error>> {
     let host = cpal::default_host();
     let device = host
@@ -44,26 +48,47 @@ fn main() -> Result<(), Box<dyn Error>> {
     let window_size = 1024;
     let hop_size = window_size / 2;
 
+    let mut frequencies = Vec::new();
+
     if buffer.len() >= window_size {
         let stft_frames = compute_short_time_fourier_transform(&buffer, window_size, hop_size);
 
-        let output = &stft_frames[0];
-
-        let half_n = window_size / 2;
-        let magnitudes: Vec<f32> = output[..half_n].iter().map(|c| c.norm()).collect();
-
-        let freqs: Vec<f32> = (0..half_n)
+        let frame_frequencies: Vec<f32> = (0..window_size / 2)
             .map(|i| i as f32 * sample_rate as f32 / window_size as f32)
             .collect();
 
-        plot_spectrum(&freqs, &magnitudes, "specturm.png")?;
-        plot_waveform(&buffer, sample_rate, "waveform.png")?;
-        println!("Length of frequencies: {}", freqs.len());
+        for _ in 0..stft_frames.len() {
+            frequencies.push(frame_frequencies.clone());
+        }
+        println!(
+            "Frequencies shape: {} frames x {} bins",
+            frequencies.len(),
+            frame_frequencies.len()
+        );
+
+        let bin_ranges = compute_bin_ranges(sample_rate, window_size);
+
+        println!("Bin Ranges: {:?}", bin_ranges);
     }
 
     write_wav("test.wav", &buffer, sample_rate)?;
 
     Ok(())
+}
+
+fn frequency_to_note(frequency: f32) -> String {
+    NOTES[(69.0 + 12.0 * (frequency / 440.0).log2()) as usize].to_string()
+}
+
+fn compute_bin_ranges(sample_rate: usize, window_size: usize) -> Vec<(f32, f32)> {
+    let bin_width = sample_rate as f32 / window_size as f32;
+    let half_n = window_size / 2;
+    (0..half_n)
+        .map(|i| {
+            let center = i as f32 * bin_width;
+            (center - bin_width / 2.0, center + bin_width / 2.0)
+        })
+        .collect()
 }
 
 fn compute_short_time_fourier_transform(
