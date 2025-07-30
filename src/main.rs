@@ -6,10 +6,23 @@ use std::{
     error::Error,
     f32::consts::PI,
     sync::{Arc, Mutex},
+    thread::sleep,
+    time::Duration,
 };
 
-static NOTES: [&str; 12] = [
-    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+static NOTES: [(&str, f32); 12] = [
+    ("C", 261.63),
+    ("C#", 277.18),
+    ("D", 293.66),
+    ("D#", 311.13),
+    ("E", 329.63),
+    ("F", 349.23),
+    ("F#", 369.99),
+    ("G", 392.00),
+    ("G#", 415.30),
+    ("A", 440.00),
+    ("A#", 466.16),
+    ("B", 493.88),
 ];
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -17,16 +30,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let device = host
         .default_input_device()
         .expect("No input device available");
-    println!("Using input device: {}", device.name()?);
-
     let config = device.default_input_config()?;
-    println!("Default input config: {:?}", config);
-
     let sample_rate = config.sample_rate().0 as usize;
+    let window_size = 4096;
+    let hop_size = window_size / 2;
 
     let audio_data = Arc::new(Mutex::new(Vec::<f32>::new()));
-
     let audio_data_clone = audio_data.clone();
+
     let stream = device.build_input_stream(
         &config.into(),
         move |data: &[f32], _| {
@@ -36,71 +47,90 @@ fn main() -> Result<(), Box<dyn Error>> {
         move |err| eprintln!("Stream error: {:?}", err),
         None,
     )?;
-
     stream.play()?;
-    println!("Recording... Press Enter to stop.");
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input)?;
 
-    let buffer = audio_data.lock().unwrap();
-    println!("Recorded {} samples", buffer.len());
+    loop {
+        sleep(Duration::from_millis(10));
 
-    let window_size = 1024;
-    let hop_size = window_size / 2;
+        let mut buffer = audio_data.lock().unwrap();
+        if buffer.len() >= window_size {
+            let stft_frames = compute_short_time_fourier_transform(&buffer, window_size, hop_size);
 
-    let mut frequencies = Vec::new();
-
-    if buffer.len() >= window_size {
-        let stft_frames = compute_short_time_fourier_transform(&buffer, window_size, hop_size);
-
-        let frame_frequencies: Vec<f32> = (0..window_size / 2)
-            .map(|i| i as f32 * sample_rate as f32 / window_size as f32)
-            .collect();
-
-        for _ in 0..stft_frames.len() {
-            frequencies.push(frame_frequencies.clone());
-        }
-
-        // bin ranges and frequency magnitudes per bin per frame
-        let bin_ranges = compute_bin_ranges(sample_rate, window_size);
-        let frequency_magnitudes = stft_frames
-            .iter()
-            .map(|frame| {
-                frame[..window_size / 2]
-                    .iter()
-                    .map(|v| v.norm())
-                    .collect::<Vec<f32>>()
-            })
-            .collect::<Vec<Vec<f32>>>();
-
-        // average magnitudes per bin
-        let num_bins = frequency_magnitudes[0].len();
-        let num_frames = frequency_magnitudes.len();
-
-        let bin_centers: Vec<f32> = bin_ranges
-            .iter()
-            .map(|(low, high)| (low + high) / 2.0)
-            .collect();
-
-        let mut average_magnitudes_per_bin = vec![0.0f32; num_bins];
-        for frame in &frequency_magnitudes {
-            for (bin_idx, mag) in frame.iter().enumerate() {
-                average_magnitudes_per_bin[bin_idx] += *mag;
+            if stft_frames.is_empty() {
+                buffer.clear();
+                continue;
             }
-        }
 
-        for mag in &mut average_magnitudes_per_bin {
-            *mag /= num_frames as f32;
-        }
+            let frequency_magnitudes = stft_frames
+                .iter()
+                .map(|frame| {
+                    frame[..window_size / 2]
+                        .iter()
+                        .map(|v| v.norm())
+                        .collect::<Vec<f32>>()
+                })
+                .collect::<Vec<Vec<f32>>>();
 
-        plot_average_magnitudes_with_bins(&average_magnitudes_per_bin, &bin_centers)?;
+            let num_bins = frequency_magnitudes[0].len();
+            let num_frames = frequency_magnitudes.len();
+
+            let mut average_magnitudes_per_bin = vec![0.0f32; num_bins];
+            for frame in &frequency_magnitudes {
+                for (bin_idx, mag) in frame.iter().enumerate() {
+                    average_magnitudes_per_bin[bin_idx] += *mag;
+                }
+            }
+            for mag in &mut average_magnitudes_per_bin {
+                *mag /= num_frames as f32;
+            }
+
+            if let Some((strongest_bin_idx, _)) = average_magnitudes_per_bin
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
+            {
+                let freq_resolution = sample_rate as f32 / window_size as f32;
+                let dominant_freq = strongest_bin_idx as f32 * freq_resolution;
+
+                if let Some((note_name, note_freq)) = frequency_to_note(dominant_freq) {
+                    println!(
+                        "Detected note: {} ({:.2} Hz), Detected freq: {:.2} Hz",
+                        note_name, note_freq, dominant_freq
+                    );
+                }
+            }
+
+            // let bin_ranges = compute_bin_ranges(sample_rate, window_size);
+            // let bin_centers: Vec<f32> = bin_ranges
+            //     .iter()
+            //     .map(|(low, high)| (low + high) / 2.0)
+            //     .collect();
+
+            // plot_average_magnitudes_with_bins(&average_magnitudes_per_bin, &bin_centers)?;
+            buffer.drain(..hop_size); // Clear processed samples
+        }
     }
-
-    Ok(())
 }
 
-fn frequency_to_note(frequency: f32) -> String {
-    NOTES[(69.0 + 12.0 * (frequency / 440.0).log2()) as usize].to_string()
+fn frequency_to_note(freq: f32) -> Option<(String, f32)> {
+    if freq <= 0.0 {
+        return None;
+    }
+    let mut closest_note = None;
+    let mut min_diff = f32::MAX;
+    let mut closest_octave = 0;
+    for octave in 0..8 {
+        for (name, base_freq) in NOTES.iter() {
+            let note_freq = base_freq * 2f32.powi(octave - 4);
+            let diff = (freq - note_freq).abs();
+            if diff < min_diff {
+                min_diff = diff;
+                closest_note = Some((name, note_freq));
+                closest_octave = octave;
+            }
+        }
+    }
+    closest_note.map(|(name, note_freq)| (format!("{}{}", name, closest_octave), note_freq))
 }
 
 fn plot_average_magnitudes_with_bins(
@@ -131,17 +161,9 @@ fn plot_average_magnitudes_with_bins(
         .configure_mesh()
         .x_desc("Frequency (Hz)")
         .y_desc("Average Magnitude")
-        .x_labels(10)
+        .x_labels(20)
         .x_label_formatter(&|x| format!("{:.1}", x))
         .draw()?;
-
-    // Draw points
-    chart.draw_series(
-        average_magnitudes
-            .iter()
-            .zip(bin_centers.iter())
-            .map(|(mag, center)| Circle::new((*center, *mag), 3, RED.filled())),
-    )?;
 
     // Connect points with line
     chart.draw_series(LineSeries::new(
