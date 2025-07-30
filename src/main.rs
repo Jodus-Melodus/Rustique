@@ -67,11 +67,28 @@ fn main() -> Result<(), Box<dyn Error>> {
         );
 
         let bin_ranges = compute_bin_ranges(sample_rate, window_size);
+        let frequency_magnitudes = stft_frames
+            .iter()
+            .map(|frame| {
+                frame[..window_size / 2]
+                    .iter()
+                    .map(|v| v.norm())
+                    .collect::<Vec<f32>>()
+            })
+            .collect::<Vec<Vec<f32>>>();
 
-        println!("Bin Ranges: {:?}", bin_ranges);
+        for (frame_idx, magnitudes) in frequency_magnitudes.iter().enumerate() {
+            for (bin_idx, mag) in magnitudes.iter().enumerate() {
+                let (low, high) = bin_ranges[bin_idx];
+                println!(
+                    "Frame {}, Bin {}: {:.2} Hz to {:.2} Hz, magnitude: {:.4}",
+                    frame_idx, bin_idx, low, high, mag
+                );
+            }
+        }
     }
 
-    write_wav("test.wav", &buffer, sample_rate)?;
+    // write_wav("test.wav", &buffer, sample_rate)?;
 
     Ok(())
 }
