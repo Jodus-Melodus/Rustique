@@ -1,9 +1,10 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use hound::{SampleFormat, WavReader, WavSpec, WavWriter};
 use plotters::prelude::*;
-use rustfft::{FftPlanner, num_complex::Complex};
+use rustfft::{FftPlanner, num_complex::Complex32};
 use std::{
     error::Error,
+    f32::consts::PI,
     sync::{Arc, Mutex},
 };
 
@@ -40,34 +41,57 @@ fn main() -> Result<(), Box<dyn Error>> {
     let buffer = audio_data.lock().unwrap();
     println!("Recorded {} samples", buffer.len());
 
-    if buffer.len() > 0 {
-        let n = buffer.len().next_power_of_two();
-        let mut input: Vec<Complex<f32>> = buffer
-            .iter()
-            .cloned()
-            .map(|x| Complex::new(x, 0.0))
-            .collect();
-        input.resize(n, Complex::new(0.0, 0.0));
+    let window_size = 1024;
+    let hop_size = window_size / 2;
 
-        let mut output = input.clone();
-        let mut planner = FftPlanner::<f32>::new();
-        let fft = planner.plan_fft_forward(n);
-        fft.process(&mut output);
+    if buffer.len() >= window_size {
+        let stft_frames = compute_short_time_fourier_transform(&buffer, window_size, hop_size);
 
-        let half_n = n / 2;
+        let output = &stft_frames[0];
+
+        let half_n = window_size / 2;
         let magnitudes: Vec<f32> = output[..half_n].iter().map(|c| c.norm()).collect();
 
         let freqs: Vec<f32> = (0..half_n)
-            .map(|i| i as f32 * sample_rate as f32 / n as f32)
+            .map(|i| i as f32 * sample_rate as f32 / window_size as f32)
             .collect();
 
         plot_spectrum(&freqs, &magnitudes, "specturm.png")?;
         plot_waveform(&buffer, sample_rate, "waveform.png")?;
+        println!("Length of frequencies: {}", freqs.len());
     }
 
     write_wav("test.wav", &buffer, sample_rate)?;
 
     Ok(())
+}
+
+fn compute_short_time_fourier_transform(
+    buffer: &[f32],
+    window_size: usize,
+    hop_size: usize,
+) -> Vec<Vec<Complex32>> {
+    let mut planner = FftPlanner::<f32>::new();
+    let fft = planner.plan_fft_forward(window_size);
+    let hann: Vec<f32> = (0..window_size)
+        .map(|i| (PI * 2.0 * i as f32 / window_size as f32).sin().powi(2))
+        .collect();
+    let mut spectrum = Vec::new();
+    let mut pos = 0;
+
+    while pos + window_size <= buffer.len() {
+        let mut windowed: Vec<Complex32> = buffer[pos..pos + window_size]
+            .iter()
+            .zip(hann.iter())
+            .map(|(sample, w)| Complex32::new(sample * w, 0.0))
+            .collect();
+
+        fft.process(&mut windowed);
+        spectrum.push(windowed);
+        pos += hop_size;
+    }
+
+    spectrum
 }
 
 fn _read_wav(path: &str) -> Result<(usize, Vec<f32>), Box<dyn Error>> {
