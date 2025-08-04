@@ -53,6 +53,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let device = host
         .default_input_device()
         .expect("No input device available");
+    println!("Using input device: {}", device.name()?);
     let config = device.default_input_config()?;
     let sample_rate = config.sample_rate().0 as usize;
     let window_size = 4096;
