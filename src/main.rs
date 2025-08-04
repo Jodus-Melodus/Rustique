@@ -122,13 +122,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let freq_resolution = sample_rate as f32 / window_size as f32;
                 let dominant_freq = strongest_bin_idx as f32 * freq_resolution;
 
-                if let Some((note_name, note_freq)) = frequency_to_note(dominant_freq) {
+                if let Some((note_name, _)) = frequency_to_note(dominant_freq) {
                     *note_clone.lock().unwrap() = note_name.clone();
                     *freq_clone.lock().unwrap() = dominant_freq;
-                    println!(
-                        "Detected note: {} ({:.2} Hz), Detected freq: {:.2} Hz",
-                        note_name, note_freq, dominant_freq
-                    );
                 }
             }
 
